@@ -16,6 +16,8 @@ from Levenshtein import distance as levenshtein_distance
 import pyaudio # type: ignore
 import uvicorn
 import vosk # type: ignore
+import sys
+import os
 
 app = FastAPI()
 
@@ -42,6 +44,8 @@ def save_timestamps(ts_voice, ts_speech, ts_keyword):
 
 def load_config(config_path: str):
     """Load configuration from a JSON file."""
+    if getattr(sys, 'frozen', False):
+        config_path = os.path.join(sys._MEIPASS, config_path)
     with open(config_path, 'r', encoding='utf-8') as file:
         return json_load(file)
 
@@ -159,16 +163,18 @@ def vosk_recognition(audio_queue, result_queue, timestamp_speech, timestamp_keyw
     """Recognize speech from audio data in the queue."""
     global recognized_text
 
+    model_path = "model"  # Standardmodellordner
+
+    if getattr(sys, 'frozen', False):  # Wenn die Anwendung von PyInstaller gepackt wurde
+        model_path = os.path.join(sys._MEIPASS, model_path)
+
     recognizer = vosk.KaldiRecognizer(
-        vosk.Model(config["vosk"]["vosk_model_path"]),
+        vosk.Model(model_path),
         config["general"]["sample_rate"]
     )
 
     while True:
         audio_data = audio_queue.get()
-
-        # TODO: Add timestamp_speech.append(time.time()) on any speech recognition
-        # TODO: Add timestamp_keyword.append(time.time()) on keyword recognition
 
         if recognizer.AcceptWaveform(audio_data):
             recognized_text = json_loads(recognizer.Result())["text"]
